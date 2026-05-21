@@ -43,7 +43,36 @@ def get_callers_code(func, current_program, monitor):
     selected_callers = show_caller_selection_dialog(callers, current_program, monitor)
     return decompile_callers(selected_callers, current_program, monitor) if selected_callers else None
 
-def process_action(action, func, current_program, monitor, api_key, model, callers_code):
+def get_callee_counts(func, current_program):
+    counts = {}
+    listing = current_program.getListing()
+    function_manager = current_program.getFunctionManager()
+    instructions = listing.getInstructions(func.getBody(), True)
+
+    while instructions.hasNext():
+        instruction = instructions.next()
+        for reference in instruction.getReferencesFrom():
+            reference_type = reference.getReferenceType()
+            if not reference_type or not reference_type.isCall():
+                continue
+            callee = function_manager.getFunctionContaining(reference.getToAddress())
+            if callee:
+                counts[callee] = counts.get(callee, 0) + 1
+    return sorted(counts.items(), key=lambda item: item[1], reverse=True)
+
+def get_callees_code(func, current_program, monitor):
+    """
+    Get the decompiled code of functions called by the current function.
+    """
+    callee_counts = get_callee_counts(func, current_program)
+    if not callee_counts:
+        return None
+
+    print("Found {} callee(s) for the current function.".format(len(callee_counts)))
+    selected_callees = show_callee_selection_dialog(callee_counts, current_program, monitor)
+    return decompile_callers(selected_callees, current_program, monitor) if selected_callees else None
+
+def process_action(action, func, current_program, monitor, api_key, model, callers_code, callees_code):
     """
     Process a specific action on the decompiled function, sending the data to the Claude API
     and applying the response. Actions can include renaming, retyping variables, adding
@@ -54,7 +83,13 @@ def process_action(action, func, current_program, monitor, api_key, model, calle
         print("Failed to obtain decompiled code or variable information for {}.".format(action))
         return False
 
-    prompt = prepare_prompt(decompiled_code, variables, action=action, callers_code=callers_code)
+    prompt = prepare_prompt(
+        decompiled_code,
+        variables,
+        action=action,
+        callers_code=callers_code,
+        callees_code=callees_code
+    )
     final_prompt = prompt if SKIP_PROMPT_CONFIRMATION else show_prompt_review_dialog(prompt, "Review and Edit Prompt ({})".format(action.replace('_', ' ').title()))
     if not final_prompt:
         print("Prompt review cancelled by user.")
@@ -111,10 +146,12 @@ def main():
 
     callers_code = get_callers_code(func, currentProgram, monitor)
     print("Callers' code {}.".format("included for additional context" if callers_code else "not included"))
+    callees_code = get_callees_code(func, currentProgram, monitor)
+    print("Callees' code {}.".format("included for additional context" if callees_code else "not included"))
 
     for action in selected_actions:
         print("Processing action: {}".format(action))
-        if not process_action(action, func, currentProgram, monitor, api_key, model, callers_code):
+        if not process_action(action, func, currentProgram, monitor, api_key, model, callers_code, callees_code):
             print("Failed to process action: {}".format(action))
             return
 

@@ -246,7 +246,7 @@ def apply_explanation(func, explanation):
 # Prompt preparation
 # ---------------------------------------------------------------------------
 
-def prepare_prompt(code, variables, action='rename_retype', callers_code=None):
+def prepare_prompt(code, variables, action='rename_retype', callers_code=None, callees_code=None):
     prompt_template = PROMPTS.get(action)
     if not prompt_template:
         return None
@@ -255,6 +255,10 @@ def prepare_prompt(code, variables, action='rename_retype', callers_code=None):
         prompt += "### Additional Context: Callers' Code\n"
         for caller_name, caller_code in callers_code.items():
             prompt += "#### Caller: {}\n\n{}\n\n\n".format(caller_name, caller_code)
+    if callees_code:
+        prompt += "### Additional Context: Callees' Code\n"
+        for callee_name, callee_code in callees_code.items():
+            prompt += "#### Callee: {}\n\n{}\n\n\n".format(callee_name, callee_code)
     prompt += "### Code:\n\n{}\n\n".format(code)
     if action != 'line_comments':
         prompt += "### Variables:\n\n{}\n\n".format(json.dumps(variables, indent=2))
