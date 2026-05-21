@@ -79,7 +79,7 @@ def process_action(action, func, current_program, monitor, api_key, model, calle
     explanations, and inserting line comments.
     """
     decompiled_code, variables = decompile_function(func, current_program, monitor, annotate_addresses=(action == 'line_comments'))
-    if not decompiled_code or not variables:
+    if not decompiled_code or variables is None:
         print("Failed to obtain decompiled code or variable information for {}.".format(action))
         return False
 
