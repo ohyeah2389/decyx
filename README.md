@@ -17,11 +17,11 @@ It uses Anthropic's Claude API to provide intelligent suggestions for function a
 
 ## Prerequisites
 
-- __Ghidra `>= 11.1.2`__. You can download the latest version of Ghidra [here](https://ghidra-sre.org).
+- __Ghidra `>= 12.0`__ (PyGhidra / Python 3 runtime). You can download the latest version of Ghidra [here](https://ghidra-sre.org).
 - __Claude API key__. You can obtain one [here](https://www.anthropic.com/api).
 
 > [!NOTE]
-> The default Python scripting engine has been changed in Ghidra 12.0 from Jython to PyGhidra; Decyx uses `# @runtime Jython` in its scripts to maintain backwards compatibility with earlier versions.
+> Decyx now targets Ghidra's Python 3 runtime (`PyGhidra`) and no longer depends on Jython.
 
 ## Installation
 

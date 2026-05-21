@@ -1,5 +1,4 @@
 # config.py
-# @runtime Jython
 
 CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
 CLAUDE_MODELS = ["claude-sonnet-4-6"]

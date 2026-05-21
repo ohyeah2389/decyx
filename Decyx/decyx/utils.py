@@ -1,5 +1,4 @@
 # utils.py
-# @runtime Jython
 
 import re
 import json
@@ -9,7 +8,7 @@ from ghidra.program.model.listing import VariableSizeException
 from ghidra.app.services import DataTypeManagerService
 from ghidra.program.model.listing import CodeUnit
 from ghidra.program.model.pcode import HighFunctionDBUtil
-from config import PROMPTS
+from decyx.config import PROMPTS
 
 # ---------------------------------------------------------------------------
 # Data type helpers
@@ -40,15 +39,15 @@ def retype_variable(variable, new_type_name, tool):
         return False
     try:
         variable.setDataType(new_data_type, SourceType.USER_DEFINED)
-        print "Successfully retyped variable '{}' to '{}'".format(variable.getName(), new_type_name)
+        print("Successfully retyped variable '{}' to '{}'".format(variable.getName(), new_type_name))
         return True
     except VariableSizeException as e:
-        print "Error: Variable size conflict when retyping '{}' to '{}'. Details: {}".format(
-            variable.getName(), new_type_name, str(e))
+        print("Error: Variable size conflict when retyping '{}' to '{}'. Details: {}".format(
+            variable.getName(), new_type_name, str(e)))
         return False
     except Exception as e:
-        print "Error retyping variable '{}' to '{}': {}".format(
-            variable.getName(), new_type_name, str(e))
+        print("Error retyping variable '{}' to '{}': {}".format(
+            variable.getName(), new_type_name, str(e)))
         return False
 
 def retype_global_variable(listing, symbol, new_data_type):
@@ -57,28 +56,28 @@ def retype_global_variable(listing, symbol, new_data_type):
         listing.clearCodeUnits(addr, addr.add(new_data_type.getLength() - 1), False)
         data = listing.createData(addr, new_data_type)
         if data:
-            print "Retyped global variable '{}' to '{}'".format(symbol.getName(), new_data_type.getName())
+            print("Retyped global variable '{}' to '{}'".format(symbol.getName(), new_data_type.getName()))
         else:
             existing_data = listing.getDataAt(addr)
             if existing_data:
                 existing_data.setDataType(new_data_type, SourceType.USER_DEFINED)
-                print "Modified existing data type for global variable '{}' to '{}'".format(
-                    symbol.getName(), new_data_type.getName())
+                print("Modified existing data type for global variable '{}' to '{}'".format(
+                    symbol.getName(), new_data_type.getName()))
             else:
-                print "Error: Failed to create or modify data for global variable '{}' with type '{}'".format(
-                    symbol.getName(), new_data_type.getName())
+                print("Error: Failed to create or modify data for global variable '{}' with type '{}'".format(
+                    symbol.getName(), new_data_type.getName()))
     except Exception as e:
-        print "Error retyping global variable '{}' to '{}': {}".format(
-            symbol.getName(), new_data_type.getName(), str(e))
+        print("Error retyping global variable '{}' to '{}': {}".format(
+            symbol.getName(), new_data_type.getName(), str(e)))
 
 def rename_function(func, new_name):
     func.setName(new_name, SourceType.USER_DEFINED)
-    print "Renamed function to '{}'".format(new_name)
+    print("Renamed function to '{}'".format(new_name))
 
 def rename_symbol(symbol, new_name):
     old_name = symbol.getName()
     symbol.setName(new_name, SourceType.USER_DEFINED)
-    print "Renamed variable '{}' to '{}'".format(old_name, new_name)
+    print("Renamed variable '{}' to '{}'".format(old_name, new_name))
 
 # ---------------------------------------------------------------------------
 # High-level apply helpers
@@ -96,7 +95,7 @@ def _get_high_function(func, current_program, monitor):
         results = decomp.decompileFunction(func, 60, monitor)
         if results.decompileCompleted():
             return results.getHighFunction()
-        print "Warning: re-decompilation failed while applying suggestions."
+        print("Warning: re-decompilation failed while applying suggestions.")
         return None
     finally:
         decomp.dispose()
@@ -127,10 +126,10 @@ def process_global_variable(symbol_table, listing, old_name, new_name, new_type_
             if new_data_type:
                 retype_global_variable(listing, symbol, new_data_type)
             else:
-                print "Data type '{}' not found for global variable '{}'".format(
-                    new_type_name, symbol.getName())
+                print("Data type '{}' not found for global variable '{}'".format(
+                    new_type_name, symbol.getName()))
     else:
-        print "Global variable '{}' not found".format(old_name)
+        print("Global variable '{}' not found".format(old_name))
 
 def apply_selected_suggestions(func, suggestions, selected, tool, monitor):
     """
@@ -181,15 +180,15 @@ def apply_selected_suggestions(func, suggestions, selected, tool, monitor):
                 if new_type_name:
                     resolved_type = find_data_type_by_name(new_type_name, tool)
                     if resolved_type is None:
-                        print "Data type '{}' not found for '{}', keeping existing type".format(new_type_name, old_name)
+                        print("Data type '{}' not found for '{}', keeping existing type".format(new_type_name, old_name))
                         resolved_type = high_sym.getDataType()
                 else:
                     resolved_type = high_sym.getDataType()
                 try:
                     HighFunctionDBUtil.updateDBVariable(high_sym, resolved_name, resolved_type, SourceType.USER_DEFINED)
-                    print "Updated (high) '{}' -> name='{}' type='{}'".format(old_name, resolved_name, resolved_type.getName())
+                    print("Updated (high) '{}' -> name='{}' type='{}'".format(old_name, resolved_name, resolved_type.getName()))
                 except Exception as e:
-                    print "Error updating high symbol '{}': {}".format(old_name, e)
+                    print("Error updating high symbol '{}': {}".format(old_name, e))
                 continue
 
             # Fall back to database Variable (stack locals, parameters)
@@ -201,23 +200,23 @@ def apply_selected_suggestions(func, suggestions, selected, tool, monitor):
                     if new_type_name:
                         success = retype_variable(var_obj, new_type_name, tool)
                         if not success:
-                            print "Warning: Failed to retype '{}' to '{}'".format(old_name, new_type_name)
+                            print("Warning: Failed to retype '{}' to '{}'".format(old_name, new_type_name))
                 except Exception as e:
-                    print "Error updating db variable '{}': {}".format(old_name, e)
+                    print("Error updating db variable '{}': {}".format(old_name, e))
                 continue
 
-            print "Variable '{}' not found (checked HighFunction + database)".format(old_name)
+            print("Variable '{}' not found (checked HighFunction + database)".format(old_name))
 
         committed = True
     except Exception as e:
-        print "Unexpected error during apply: {}".format(e)
+        print("Unexpected error during apply: {}".format(e))
     finally:
         program.endTransaction(transaction, committed)
 
     if committed:
-        print "Finished applying suggestions."
+        print("Finished applying suggestions.")
     else:
-        print "Changes rolled back due to error."
+        print("Changes rolled back due to error.")
 
 # ---------------------------------------------------------------------------
 # Comment / explanation helpers
@@ -229,19 +228,19 @@ def apply_line_comments(func, comments):
     for address_str, comment in comments.items():
         address = program.getAddressFactory().getAddress(address_str)
         if address is None:
-            print "Warning: Invalid address {}".format(address_str)
+            print("Warning: Invalid address {}".format(address_str))
             continue
         code_unit = listing.getCodeUnitAt(address)
         if code_unit:
             code_unit.setComment(CodeUnit.PRE_COMMENT, comment)
-            print "Added PRE comment at address {}: {}".format(address_str, comment)
+            print("Added PRE comment at address {}: {}".format(address_str, comment))
         else:
-            print "Warning: No code unit found at address {}".format(address_str)
-    print "Line comments applied."
+            print("Warning: No code unit found at address {}".format(address_str))
+    print("Line comments applied.")
 
 def apply_explanation(func, explanation):
     func.setComment(explanation)
-    print "Added explanation as comment to the function."
+    print("Added explanation as comment to the function.")
 
 # ---------------------------------------------------------------------------
 # Prompt preparation

@@ -1,12 +1,11 @@
 # decompiler.py
-# @runtime Jython
 
 import re
 from ghidra.app.decompiler import DecompInterface, DecompileOptions
 from ghidra.program.model.symbol import SourceType, SymbolType
 from ghidra.program.model.pcode import HighSymbol
 from ghidra.app.decompiler import ClangStatement
-from config import GLOBAL_VARIABLE_PATTERNS
+from decyx.config import GLOBAL_VARIABLE_PATTERNS
 
 def initialize_decompiler():
     """
@@ -187,10 +186,10 @@ def decompile_function(func, current_program, monitor, annotate_addresses=False)
     try:
         results = decomp_interface.decompileFunction(func, 60, monitor)
         if not results.decompileCompleted():
-            print "Decompilation failed for function at {}".format(func.getEntryPoint())
+            print("Decompilation failed for function at {}".format(func.getEntryPoint()))
             return None, None
 
-        print "Decompilation completed successfully."
+        print("Decompilation completed successfully.")
         decompiled_function = results.getDecompiledFunction()
         high_func = results.getHighFunction()
         code_markup = results.getCCodeMarkup()
@@ -205,13 +204,13 @@ def decompile_function(func, current_program, monitor, annotate_addresses=False)
         if high_func is not None:
             variables = extract_variables_from_high_function(high_func, decompiled_code_str, current_program)
         else:
-            print "Warning: HighFunction not available; falling back to database variable extraction."
+            print("Warning: HighFunction not available; falling back to database variable extraction.")
             variables = _extract_variables_from_db(func, decompiled_code_str, current_program)
 
         return decompiled_code_str, variables
 
     except Exception as e:
-        print "Exception during decompilation: {}".format(e)
+        print("Exception during decompilation: {}".format(e))
         return None, None
     finally:
         decomp_interface.dispose()
@@ -271,7 +270,7 @@ def decompile_callers(callers, current_program, monitor):
     try:
         for index, caller in enumerate(callers):
             if monitor.isCancelled():
-                print "Decompilation cancelled by user."
+                print("Decompilation cancelled by user.")
                 break
             progress_percentage = int(((index + 1) / float(total_callers)) * 100)
             monitor.setProgress(progress_percentage)
@@ -280,13 +279,13 @@ def decompile_callers(callers, current_program, monitor):
                 if results.decompileCompleted():
                     decompiled_code = results.getDecompiledFunction().getC()
                     callers_code[caller.getName()] = decompiled_code
-                    print "Decompiled caller '{}' successfully.".format(caller.getName())
+                    print("Decompiled caller '{}' successfully.".format(caller.getName()))
                 else:
                     callers_code[caller.getName()] = "Decompilation failed."
-                    print "Decompilation failed for caller '{}'.".format(caller.getName())
+                    print("Decompilation failed for caller '{}'.".format(caller.getName()))
             except Exception as e:
                 callers_code[caller.getName()] = "Exception during decompilation: {}".format(e)
-                print "Exception during decompilation of caller '{}': {}".format(caller.getName(), e)
+                print("Exception during decompilation of caller '{}': {}".format(caller.getName(), e))
     finally:
         decomp_interface.dispose()
 
