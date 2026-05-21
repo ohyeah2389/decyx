@@ -10,7 +10,7 @@ from decyx.utils import find_data_type_by_name, format_new_type
 from decyx.config import DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT
 
 
-def show_suggestion_dialog(suggestions, variables_with_old_types, tool):
+def show_suggestion_dialog(suggestions, variables_with_old_types, tool, current_function_name=None):
     dialog = JDialog()
     dialog.setTitle("Claude Suggestions")
     dialog.setModal(True)
@@ -21,7 +21,8 @@ def show_suggestion_dialog(suggestions, variables_with_old_types, tool):
 
     func_panel = JPanel()
     func_panel.setLayout(BoxLayout(func_panel, BoxLayout.X_AXIS))
-    func_checkbox = JCheckBox("Rename function to:", True)
+    should_default_rename_function = bool(current_function_name and current_function_name.startswith("FUN_"))
+    func_checkbox = JCheckBox("Rename function to:", should_default_rename_function)
     func_name_field = JTextField(suggestions.get("function_name", ""), 24)
     func_name_field.setMaximumSize(Dimension(260, 25))
     func_panel.add(func_checkbox)

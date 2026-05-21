@@ -67,7 +67,7 @@ def process_action(action, func, current_program, monitor, api_key, model, calle
         return False
 
     if action == 'rename_retype':
-        selected_suggestions = show_suggestion_dialog(response, variables, state.getTool())
+        selected_suggestions = show_suggestion_dialog(response, variables, state.getTool(), func.getName())
         if selected_suggestions:
             apply_selected_suggestions(func, response, selected_suggestions, state.getTool(), monitor)
         else:
