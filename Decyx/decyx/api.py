@@ -52,7 +52,7 @@ def get_response_from_claude(prompt, api_key, model, monitor, is_explanation=Fal
         message = client.messages.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=2000,
+            max_tokens=6000,
             temperature=0.2,
         )
 
