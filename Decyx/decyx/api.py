@@ -1,49 +1,7 @@
-# api.py
-
 import json
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
-from decyx.config import CLAUDE_API_URL
-
-def send_request(url, headers, data):
-    """Send a POST request to the specified URL with the given headers and data.
-
-    Args:
-        url (str): The URL to send the request to.
-        headers (dict): A dictionary of HTTP headers to include in the request.
-        data (dict): The data to send in the body of the request.
-
-    Returns:
-        urllib.response.addinfourl or urllib.error.HTTPError: The response object returned by the server.
-    """
-    req = Request(url, data=json.dumps(data).encode("utf-8"), headers=headers, method="POST")
-    try:
-        return urlopen(req)
-    except HTTPError as e:
-        return e
-    except URLError as e:
-        print("Failed to reach server: {}".format(e.reason))
-        return None
-
-def read_response(response):
-    """Read the response from the response object.
-
-    Args:
-        response (urllib.response.addinfourl or urllib.error.HTTPError): The response object returned by send_request.
-
-    Returns:
-        str: The content of the response as a string, or None if an error occurred.
-    """
-    if response is None:
-        return None
-    elif isinstance(response, HTTPError):
-        error_content = response.read()
-        print("Error: HTTP response code {}".format(response.code))
-        print("Error message: {}".format(error_content.decode("utf-8", errors="replace")))
-        return None
-    else:
-        return response.read().decode("utf-8", errors="replace")
+from anthropic import Anthropic
+from anthropic import APIConnectionError, APIError, APIStatusError
 
 def parse_json_response(content):
     """Parse the JSON response from Claude API.
@@ -66,6 +24,14 @@ def parse_json_response(content):
         print("No JSON object found in Claude's response")
     return None
 
+def extract_text_content(message):
+    """Extract plain text blocks from an Anthropic message response."""
+    text_blocks = [
+        block.text for block in getattr(message, "content", [])
+        if getattr(block, "type", None) == "text"
+    ]
+    return "".join(text_blocks).strip()
+
 def get_response_from_claude(prompt, api_key, model, monitor, is_explanation=False):
     """Get a response from the Claude API.
 
@@ -81,38 +47,37 @@ def get_response_from_claude(prompt, api_key, model, monitor, is_explanation=Fal
     """
     try:
         monitor.setMessage("Sending request to Claude API...")
-        headers = {
-            "Content-Type": "application/json",
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01"
-        }
-        data = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 2000,
-            "temperature": 0.2,
-        }
-
-        print("Sending request to Claude API...")
-        response = send_request(CLAUDE_API_URL, headers, data)
-
+        client = Anthropic(api_key=api_key)
         monitor.setMessage("Waiting for response from Claude API...")
-        content = read_response(response)
+        message = client.messages.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=2000,
+            temperature=0.2,
+        )
 
-        if content:
+        content_text = extract_text_content(message)
+        if content_text:
             print("Received response from Claude API.")
-            response_json = json.loads(content)
-            content_text = response_json['content'][0]['text']
 
             if is_explanation:
-                return content_text.strip()
-            else:
-                return parse_json_response(content_text)
+                return content_text
+            return parse_json_response(content_text)
 
+        print("Received empty content from Claude API.")
         return None
 
+    except APIStatusError as e:
+        print("Claude API status error {}: {}".format(e.status_code, str(e)))
+        return None
+    except APIConnectionError as e:
+        print("Failed to reach Claude API: {}".format(e))
+        return None
+    except APIError as e:
+        print("Claude API error: {}".format(e))
+        return None
     except Exception as e:
-        print("Exception in get_response_from_claude: {}".format(e))
+        print("Unexpected exception in get_response_from_claude: {}".format(e))
         return None
     finally:
         monitor.setMessage("")
