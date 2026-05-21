@@ -1,4 +1,5 @@
 import json
+import re
 
 from anthropic import Anthropic
 from anthropic import APIConnectionError, APIError, APIStatusError
@@ -12,16 +13,24 @@ def parse_json_response(content):
     Returns:
         dict: The parsed JSON object, or None if parsing failed.
     """
-    json_start = content.find('{')
-    json_end = content.rfind('}') + 1
-    if json_start != -1 and json_end != -1:
-        json_str = content[json_start:json_end]
-        try:
-            return json.loads(json_str)
-        except ValueError as e:
-            print("Failed to parse JSON from Claude's response: {}".format(str(e)))
-    else:
-        print("No JSON object found in Claude's response")
+    decoder = json.JSONDecoder()
+    candidates = [content]
+    candidates.extend(
+        match.group(1)
+        for match in re.finditer(r"```(?:json)?\s*([\s\S]*?)```", content, re.IGNORECASE)
+    )
+
+    for candidate in candidates:
+        for i, ch in enumerate(candidate):
+            if ch != "{":
+                continue
+            try:
+                parsed_json, _ = decoder.raw_decode(candidate, i)
+                return parsed_json
+            except ValueError:
+                continue
+
+    print("No valid JSON object found in Claude's response.")
     return None
 
 def extract_text_content(message):
