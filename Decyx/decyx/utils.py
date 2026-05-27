@@ -112,24 +112,55 @@ def _build_high_sym_map(high_func):
             sym_map[name] = sym
     return sym_map
 
+def _first_symbol(symbols):
+    """Return first symbol from Java iterator/list-like containers."""
+    if not symbols:
+        return None
+    if hasattr(symbols, "hasNext") and hasattr(symbols, "next"):
+        return symbols.next() if symbols.hasNext() else None
+    if hasattr(symbols, "iterator"):
+        iterator = symbols.iterator()
+        return iterator.next() if iterator.hasNext() else None
+    if hasattr(symbols, "size") and hasattr(symbols, "get"):
+        return symbols.get(0) if symbols.size() > 0 else None
+    try:
+        return symbols[0] if len(symbols) > 0 else None
+    except Exception:
+        pass
+    try:
+        return next(iter(symbols))
+    except Exception:
+        return None
+
 def process_global_variable(symbol_table, listing, old_name, new_name, new_type_name, tool):
-    """Process a global variable for renaming and retyping."""
+    """Process a global variable for renaming and retyping. Returns True if resolved."""
+    names_to_try = [old_name]
     if old_name.startswith('_'):
-        old_name = old_name[1:]
-    symbols = symbol_table.getSymbols(old_name)
-    symbol = next(symbols, None)
-    if symbol:
-        if new_name:
-            rename_symbol(symbol, new_name)
-        if new_type_name:
-            new_data_type = find_data_type_by_name(new_type_name, tool)
-            if new_data_type:
-                retype_global_variable(listing, symbol, new_data_type)
-            else:
-                print("Data type '{}' not found for global variable '{}'".format(
-                    new_type_name, symbol.getName()))
+        names_to_try.append(old_name[1:])
     else:
-        print("Global variable '{}' not found".format(old_name))
+        names_to_try.append("_" + old_name)
+
+    symbol = None
+    for candidate in names_to_try:
+        symbol = _first_symbol(symbol_table.getGlobalSymbols(candidate))
+        if symbol is None:
+            symbol = _first_symbol(symbol_table.getSymbols(candidate))
+        if symbol is not None:
+            break
+
+    if symbol is None:
+        return False
+
+    if new_name:
+        rename_symbol(symbol, new_name)
+    if new_type_name:
+        new_data_type = find_data_type_by_name(new_type_name, tool)
+        if new_data_type:
+            retype_global_variable(listing, symbol, new_data_type)
+        else:
+            print("Data type '{}' not found for global variable '{}'".format(
+                new_type_name, symbol.getName()))
+    return True
 
 def apply_selected_suggestions(func, suggestions, selected, tool, monitor):
     """
@@ -168,8 +199,8 @@ def apply_selected_suggestions(func, suggestions, selected, tool, monitor):
             new_name = var_suggestion.get('new_name', None)
             new_type_name = var_suggestion.get('new_type', None)
 
-            # Global variables
-            if "DAT" in old_name:
+            # Common decompiler global naming prefixes
+            if old_name.startswith(("DAT_", "_DAT_", "g_", "_g_")):
                 process_global_variable(symbol_table, listing, old_name, new_name, new_type_name, tool)
                 continue
 
@@ -205,7 +236,9 @@ def apply_selected_suggestions(func, suggestions, selected, tool, monitor):
                     print("Error updating db variable '{}': {}".format(old_name, e))
                 continue
 
-            print("Variable '{}' not found (checked HighFunction + database)".format(old_name))
+            if process_global_variable(symbol_table, listing, old_name, new_name, new_type_name, tool):
+                continue
+            print("Variable '{}' not found (checked HighFunction + database + globals)".format(old_name))
 
         committed = True
     except Exception as e:
@@ -217,6 +250,7 @@ def apply_selected_suggestions(func, suggestions, selected, tool, monitor):
         print("Finished applying suggestions.")
     else:
         print("Changes rolled back due to error.")
+    return committed
 
 # ---------------------------------------------------------------------------
 # Comment / explanation helpers
