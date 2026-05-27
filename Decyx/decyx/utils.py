@@ -53,13 +53,6 @@ def retype_variable(variable, new_type_name, tool):
 def retype_global_variable(listing, symbol, new_data_type):
     addr = symbol.getAddress()
     try:
-        existing_data = listing.getDataAt(addr)
-        if existing_data:
-            existing_data.setDataType(new_data_type, SourceType.USER_DEFINED)
-            print("Modified existing data type for global variable '{}' to '{}'".format(
-                symbol.getName(), new_data_type.getName()))
-            return
-
         dt_len = max(1, new_data_type.getLength())
         block = listing.getProgram().getMemory().getBlock(addr)
         if block is None:
@@ -232,9 +225,9 @@ def apply_selected_suggestions(func, suggestions, selected, tool, monitor):
                 try:
                     HighFunctionDBUtil.updateDBVariable(high_sym, resolved_name, resolved_type, SourceType.USER_DEFINED)
                     print("Updated (high) '{}' -> name='{}' type='{}'".format(old_name, resolved_name, resolved_type.getName()))
+                    continue
                 except Exception as e:
-                    print("Error updating high symbol '{}': {}".format(old_name, e))
-                continue
+                    print("Error updating high symbol '{}': {} (trying database/global fallback)".format(old_name, e))
 
             # Fall back to database Variable (stack locals, parameters)
             var_obj = next((v for v in db_vars if v.getName() == old_name), None)
