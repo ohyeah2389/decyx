@@ -53,19 +53,33 @@ def retype_variable(variable, new_type_name, tool):
 def retype_global_variable(listing, symbol, new_data_type):
     addr = symbol.getAddress()
     try:
-        listing.clearCodeUnits(addr, addr.add(new_data_type.getLength() - 1), False)
+        existing_data = listing.getDataAt(addr)
+        if existing_data:
+            existing_data.setDataType(new_data_type, SourceType.USER_DEFINED)
+            print("Modified existing data type for global variable '{}' to '{}'".format(
+                symbol.getName(), new_data_type.getName()))
+            return
+
+        dt_len = max(1, new_data_type.getLength())
+        block = listing.getProgram().getMemory().getBlock(addr)
+        if block is None:
+            print("Skipped retyping global variable '{}' at {} (no backing memory block).".format(
+                symbol.getName(), addr))
+            return
+
+        available = int(block.getEnd().subtract(addr)) + 1
+        if available < dt_len:
+            print("Skipped retyping global variable '{}' at {} (need {} bytes, only {} available).".format(
+                symbol.getName(), addr, dt_len, available))
+            return
+
+        listing.clearCodeUnits(addr, addr.add(dt_len - 1), False)
         data = listing.createData(addr, new_data_type)
         if data:
             print("Retyped global variable '{}' to '{}'".format(symbol.getName(), new_data_type.getName()))
         else:
-            existing_data = listing.getDataAt(addr)
-            if existing_data:
-                existing_data.setDataType(new_data_type, SourceType.USER_DEFINED)
-                print("Modified existing data type for global variable '{}' to '{}'".format(
-                    symbol.getName(), new_data_type.getName()))
-            else:
-                print("Error: Failed to create or modify data for global variable '{}' with type '{}'".format(
-                    symbol.getName(), new_data_type.getName()))
+            print("Error: Failed to create data for global variable '{}' with type '{}'".format(
+                symbol.getName(), new_data_type.getName()))
     except Exception as e:
         print("Error retyping global variable '{}' to '{}': {}".format(
             symbol.getName(), new_data_type.getName(), str(e)))
